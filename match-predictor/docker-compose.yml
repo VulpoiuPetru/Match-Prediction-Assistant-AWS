@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: match-predictor-db
+    environment:
+      POSTGRES_DB: match_prediction_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1q2w3e
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: match-predictor-chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: match-predictor-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  app:
+    build: .
+    container_name: match-predictor-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/match_prediction_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: 1q2w3e
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2
+      CHROMADB_URL: http://chromadb:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+      ollama:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  chroma_data:
+  ollama_data:

@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import org.springframework.beans.factory.annotation.Value;
+
+
 
 @Service
 public class ChromaDbService {
@@ -26,6 +29,9 @@ public class ChromaDbService {
     private Object analyticsCollection;
     private boolean isConnected = false;
 
+    @Value("${chromadb.url:http://localhost:8000}")
+    private String chromaDbUrl;
+
     @PostConstruct
     public void init() {
         System.out.println("CHROMADB CONNECTION DEBUG:");
@@ -37,8 +43,10 @@ public class ChromaDbService {
             System.out.println("   ✓ Classes loaded");
 
             System.out.println("2. Creating client...");
+//            client = clientClass.getConstructor(String.class)
+//                    .newInstance("http://localhost:8000");
             client = clientClass.getConstructor(String.class)
-                    .newInstance("http://localhost:8000");
+                    .newInstance(chromaDbUrl);
             System.out.println("   ✓ Client created");
 
             System.out.println("3. Looking for default embedding function...");
