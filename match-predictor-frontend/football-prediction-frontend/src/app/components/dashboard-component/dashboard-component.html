@@ -1,0 +1,210 @@
+<div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
+  
+  <!-- Header -->
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #1976d2;">Football Match Predictor</h1>
+    <p style="color: #666;">Ask AI or select teams for predictions</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+    
+    <!-- CHAT AI -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>AI Chat</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        
+        <!-- Chat Messages -->
+        <div style="height: 400px; overflow-y: auto; padding: 15px; background: #f5f5f5; border-radius: 8px; margin-bottom: 15px;">
+          <div *ngFor="let msg of chatMessages">
+            <!-- User Message -->
+            <div *ngIf="msg.role === 'user'" style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+              <div style="background: #1976d2; color: white; padding: 12px 16px; border-radius: 15px; max-width: 80%;">
+                {{ msg.content }}
+              </div>
+            </div>
+            
+            <!-- AI Message -->
+            <div *ngIf="msg.role === 'ai'" style="display: flex; justify-content: flex-start; margin-bottom: 15px;">
+              <div style="background: white; padding: 12px 16px; border-radius: 15px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <div style="white-space: pre-wrap;">{{ msg.content }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thinking -->
+          <div *ngIf="isThinking" style="display: flex; justify-content: flex-start; margin-bottom: 15px;">
+            <div style="background: white; padding: 12px 16px; border-radius: 15px; display: flex; align-items: center; gap: 10px;">
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>AI is thinking...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div style="display: flex; gap: 10px;">
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>Ask about predictions...</mat-label>
+            <input matInput 
+                   [(ngModel)]="userMessage"
+                   (keydown.enter)="sendChat()"
+                   [disabled]="isThinking"
+                   placeholder="e.g., Real Madrid vs Barcelona">
+          </mat-form-field>
+          <button mat-fab 
+                  color="primary"
+                  [disabled]="!userMessage.trim() || isThinking"
+                  (click)="sendChat()">
+            <mat-icon>send</mat-icon>
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- TEAM SELECTOR -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Quick Prediction</mat-card-title>
+        <mat-card-subtitle>Select two teams</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        
+        <div *ngIf="loadingTeams" style="text-align: center; padding: 40px;">
+          <mat-spinner diameter="40"></mat-spinner>
+        </div>
+
+        <div *ngIf="!loadingTeams">
+          <!-- Team 1 Selection -->
+          <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 15px;">
+            <mat-label>Home Team</mat-label>
+            <mat-select [(ngModel)]="selectedTeam1">
+              <mat-option *ngFor="let team of teams" [value]="team">
+                {{ team.name }} ({{ team.country }})
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- VS -->
+          <div style="text-align: center; font-size: 1.5rem; color: #999; margin: 10px 0;">VS</div>
+
+          <!-- Team 2 Selection -->
+          <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 20px;">
+            <mat-label>Away Team</mat-label>
+            <mat-select [(ngModel)]="selectedTeam2">
+              <mat-option *ngFor="let team of teams" [value]="team">
+                {{ team.name }} ({{ team.country }})
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <!-- Predict Button -->
+          <button mat-raised-button 
+                  color="primary" 
+                  style="width: 100%;"
+                  [disabled]="!selectedTeam1 || !selectedTeam2 || selectedTeam1.id === selectedTeam2.id || isPredictingManual"
+                  (click)="predictManual()">
+            <mat-spinner *ngIf="isPredictingManual" diameter="20"></mat-spinner>
+            <mat-icon *ngIf="!isPredictingManual">psychology</mat-icon>
+            {{ isPredictingManual ? 'Analyzing...' : 'Get Prediction' }}
+          </button>
+
+          <!-- Manual Prediction Result -->
+          <div *ngIf="manualPrediction" style="margin-top: 20px; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+            <h3 style="margin: 0 0 15px 0; color: #1976d2;">
+              {{ manualPrediction.match.homeTeam.name }} vs {{ manualPrediction.match.awayTeam.name }}
+            </h3>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px;">
+                <div style="font-size: 0.85rem; color: #666; margin-bottom: 5px;">🏠 Home</div>
+                <div style="font-size: 1.8rem; font-weight: bold; color: #1976d2;">
+                  {{ manualPrediction.homeWinProbability }}%
+                </div>
+              </div>
+              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px;">
+                <div style="font-size: 0.85rem; color: #666; margin-bottom: 5px;">⚖️ Draw</div>
+                <div style="font-size: 1.8rem; font-weight: bold; color: #666;">
+                  {{ manualPrediction.drawProbability }}%
+                </div>
+              </div>
+              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px;">
+                <div style="font-size: 0.85rem; color: #666; margin-bottom: 5px;">✈️ Away</div>
+                <div style="font-size: 1.8rem; font-weight: bold; color: #d32f2f;">
+                  {{ manualPrediction.awayWinProbability }}%
+                </div>
+              </div>
+            </div>
+
+            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2;">
+              <strong style="color: #1976d2;">AI Analysis:</strong><br>
+              <div style="margin-top: 8px; line-height: 1.5;">{{ manualPrediction.reasoning }}</div>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- RECENT PREDICTIONS -->
+    <mat-card style="grid-column: 1 / -1;">
+      <mat-card-header>
+        <mat-card-title>All Predictions ({{ predictions.length }})</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        
+        <div *ngIf="loadingPredictions" style="text-align: center; padding: 40px;">
+          <mat-spinner diameter="40"></mat-spinner>
+        </div>
+
+        <div *ngIf="!loadingPredictions" style="max-height: 500px; overflow-y: auto;">
+          <div *ngFor="let pred of predictions" 
+               style="padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; background: #fafafa;">
+            
+            <div style="font-weight: 600; font-size: 1.2rem; margin-bottom: 15px; color: #333;">
+              {{ pred.match.homeTeam.name }} vs {{ pred.match.awayTeam.name }}
+              <span style="color: #999; font-size: 0.9rem; font-weight: normal;"> • {{ pred.match.league }}</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
+              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Home Win</div>
+                <div style="font-size: 2rem; font-weight: bold; color: #1976d2;">
+                  {{ pred.homeWinProbability }}%
+                </div>
+              </div>
+              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Draw</div>
+                <div style="font-size: 2rem; font-weight: bold; color: #666;">
+                  {{ pred.drawProbability }}%
+                </div>
+              </div>
+              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Away Win</div>
+                <div style="font-size: 2rem; font-weight: bold; color: #d32f2f;">
+                  {{ pred.awayWinProbability }}%
+                </div>
+              </div>
+            </div>
+
+            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2;">
+              <strong style="color: #1976d2;">AI Reasoning:</strong><br>
+              <div style="margin-top: 8px; line-height: 1.6; color: #555;">{{ pred.reasoning }}</div>
+            </div>
+
+            <div style="margin-top: 12px; font-size: 0.85rem; color: #999;">
+              {{ pred.modelVersion || 'llama3.2' }} • 
+              {{ formatDate(pred.createdAt) }}
+            </div>
+          </div>
+
+          <div *ngIf="predictions.length === 0" style="text-align: center; padding: 60px; color: #999;">
+            <mat-icon style="font-size: 64px; width: 64px; height: 64px;">analytics</mat-icon>
+            <p style="font-size: 1.2rem;">No predictions yet</p>
+            <p>Use the chat or team selector to generate predictions!</p>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</div>
