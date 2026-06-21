@@ -1,0 +1,22 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 494003775990.dkr.ecr.eu-central-1.amazonaws.com
+  build:
+    commands:
+      - echo Building Docker image...
+      - docker build -t match-predictor .
+      - docker tag match-predictor:latest 494003775990.dkr.ecr.eu-central-1.amazonaws.com/match-predictor:latest
+  post_build:
+    commands:
+      - echo Pushing to ECR...
+      - docker push 494003775990.dkr.ecr.eu-central-1.amazonaws.com/match-predictor:latest
+      - echo Writing imagedefinitions.json...
+      - printf '[{"name":"match-predictor","imageUri":"494003775990.dkr.ecr.eu-central-1.amazonaws.com/match-predictor:latest"}]' > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
