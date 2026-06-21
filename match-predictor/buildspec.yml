@@ -11,6 +11,7 @@ phases:
       - cd match-predictor
       - docker build -t match-predictor .
       - docker tag match-predictor:latest 494003775990.dkr.ecr.eu-central-1.amazonaws.com/match-predictor:latest
+      - cd ..
   post_build:
     commands:
       - echo Pushing to ECR...
