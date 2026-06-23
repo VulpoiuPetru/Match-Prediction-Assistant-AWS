@@ -97,10 +97,10 @@ public class AiPredictionService {
     }
 
     private String callBedrock(String prompt) {
-        String modelId = "amazon.titan-text-express-v1";
+        String modelId = "amazon.nova-micro-v1:0";
         String requestBody = String.format(
-                "{\"inputText\":\"%s\",\"textGenerationConfig\":{\"maxTokenCount\":1024,\"temperature\":0.7}}",
-                prompt.replace("\"", "\\\"").replace("\n", "\\n")
+                "{\"messages\":[{\"role\":\"user\",\"content\":[{\"text\":\"%s\"}]}]}",
+                prompt.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
         );
 
         var request = software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest.builder()
@@ -113,9 +113,12 @@ public class AiPredictionService {
         var response = bedrockRuntimeClient.invokeModel(request);
         String responseBody = response.body().asUtf8String();
 
-        // Parse Titan response
         org.json.JSONObject json = new org.json.JSONObject(responseBody);
-        return json.getJSONArray("results").getJSONObject(0).getString("outputText");
+        return json.getJSONObject("output")
+                .getJSONObject("message")
+                .getJSONArray("content")
+                .getJSONObject(0)
+                .getString("text");
     }
 
      // RAG STEP 1: Retrieve relevant historical context from multiple sources
