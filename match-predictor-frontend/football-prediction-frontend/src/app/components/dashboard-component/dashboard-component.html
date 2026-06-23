@@ -1,210 +1,478 @@
-<div style="padding: 20px; max-width: 1400px; margin: 0 auto;">
-  
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="app-shell">
+
   <!-- Header -->
-  <div style="text-align: center; margin-bottom: 30px;">
-    <h1 style="color: #1976d2;">Football Match Predictor</h1>
-    <p style="color: #666;">Ask AI or select teams for predictions</p>
-  </div>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚽</span>
+        <span class="logo-text">Match<strong>AI</strong></span>
+      </div>
+      <p class="header-sub">Football Prediction Engine · AWS Bedrock</p>
+    </div>
+  </header>
 
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
-    
-    <!-- CHAT AI -->
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>AI Chat</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        
-        <!-- Chat Messages -->
-        <div style="height: 400px; overflow-y: auto; padding: 15px; background: #f5f5f5; border-radius: 8px; margin-bottom: 15px;">
-          <div *ngFor="let msg of chatMessages">
-            <!-- User Message -->
-            <div *ngIf="msg.role === 'user'" style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
-              <div style="background: #1976d2; color: white; padding: 12px 16px; border-radius: 15px; max-width: 80%;">
-                {{ msg.content }}
-              </div>
-            </div>
-            
-            <!-- AI Message -->
-            <div *ngIf="msg.role === 'ai'" style="display: flex; justify-content: flex-start; margin-bottom: 15px;">
-              <div style="background: white; padding: 12px 16px; border-radius: 15px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                <div style="white-space: pre-wrap;">{{ msg.content }}</div>
-              </div>
+  <main class="app-main">
+
+    <!-- TOP ROW: Chat + Quick Prediction -->
+    <div class="top-grid">
+
+      <!-- AI CHAT -->
+      <div class="card chat-card">
+        <div class="card-header">
+          <span class="card-icon">🤖</span>
+          <div>
+            <h2 class="card-title">AI Chat</h2>
+            <p class="card-subtitle">Ask me anything about matches</p>
+          </div>
+        </div>
+
+        <div class="chat-messages" #chatContainer>
+          <div *ngFor="let msg of chatMessages" class="msg-wrap" [class.msg-user]="msg.role === 'user'" [class.msg-ai]="msg.role === 'ai'">
+            <div class="msg-bubble">
+              <div class="msg-content" [innerHTML]="formatMessage(msg.content)"></div>
             </div>
           </div>
-
-          <!-- Thinking -->
-          <div *ngIf="isThinking" style="display: flex; justify-content: flex-start; margin-bottom: 15px;">
-            <div style="background: white; padding: 12px 16px; border-radius: 15px; display: flex; align-items: center; gap: 10px;">
-              <mat-spinner diameter="20"></mat-spinner>
-              <span>AI is thinking...</span>
+          <div *ngIf="isThinking" class="msg-wrap msg-ai">
+            <div class="msg-bubble thinking">
+              <span></span><span></span><span></span>
             </div>
           </div>
         </div>
 
-        <!-- Chat Input -->
-        <div style="display: flex; gap: 10px;">
-          <mat-form-field appearance="outline" style="flex: 1;">
-            <mat-label>Ask about predictions...</mat-label>
-            <input matInput 
-                   [(ngModel)]="userMessage"
-                   (keydown.enter)="sendChat()"
-                   [disabled]="isThinking"
-                   placeholder="e.g., Real Madrid vs Barcelona">
-          </mat-form-field>
-          <button mat-fab 
-                  color="primary"
-                  [disabled]="!userMessage.trim() || isThinking"
-                  (click)="sendChat()">
-            <mat-icon>send</mat-icon>
+        <div class="chat-input-row">
+          <input class="chat-input"
+                 [(ngModel)]="userMessage"
+                 (keydown.enter)="sendChat()"
+                 [disabled]="isThinking"
+                 placeholder="e.g. Real Madrid vs Barcelona..." />
+          <button class="send-btn" [disabled]="!userMessage.trim() || isThinking" (click)="sendChat()">
+            ➤
           </button>
         </div>
-      </mat-card-content>
-    </mat-card>
+      </div>
 
-    <!-- TEAM SELECTOR -->
-    <mat-card>
-      <mat-card-header>
-        <mat-card-title>Quick Prediction</mat-card-title>
-        <mat-card-subtitle>Select two teams</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        
-        <div *ngIf="loadingTeams" style="text-align: center; padding: 40px;">
-          <mat-spinner diameter="40"></mat-spinner>
+      <!-- QUICK PREDICTION -->
+      <div class="card predict-card">
+        <div class="card-header">
+          <span class="card-icon">⚡</span>
+          <div>
+            <h2 class="card-title">Quick Prediction</h2>
+            <p class="card-subtitle">Select teams · AI analyses head-to-head</p>
+          </div>
         </div>
 
-        <div *ngIf="!loadingTeams">
-          <!-- Team 1 Selection -->
-          <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 15px;">
-            <mat-label>Home Team</mat-label>
-            <mat-select [(ngModel)]="selectedTeam1">
-              <mat-option *ngFor="let team of teams" [value]="team">
-                {{ team.name }} ({{ team.country }})
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+        <div *ngIf="loadingTeams" class="loader-wrap">
+          <div class="spinner"></div>
+        </div>
 
-          <!-- VS -->
-          <div style="text-align: center; font-size: 1.5rem; color: #999; margin: 10px 0;">VS</div>
+        <div *ngIf="!loadingTeams" class="predict-form">
+          <div class="team-select-group">
+            <label class="select-label">🏠 Home Team</label>
+            <select class="team-select" [(ngModel)]="selectedTeam1">
+              <option [ngValue]="null" disabled>Choose home team…</option>
+              <option *ngFor="let team of teams" [ngValue]="team">{{ team.name }}</option>
+            </select>
+          </div>
 
-          <!-- Team 2 Selection -->
-          <mat-form-field appearance="outline" style="width: 100%; margin-bottom: 20px;">
-            <mat-label>Away Team</mat-label>
-            <mat-select [(ngModel)]="selectedTeam2">
-              <mat-option *ngFor="let team of teams" [value]="team">
-                {{ team.name }} ({{ team.country }})
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+          <div class="vs-divider">VS</div>
 
-          <!-- Predict Button -->
-          <button mat-raised-button 
-                  color="primary" 
-                  style="width: 100%;"
-                  [disabled]="!selectedTeam1 || !selectedTeam2 || selectedTeam1.id === selectedTeam2.id || isPredictingManual"
+          <div class="team-select-group">
+            <label class="select-label">✈️ Away Team</label>
+            <select class="team-select" [(ngModel)]="selectedTeam2">
+              <option [ngValue]="null" disabled>Choose away team…</option>
+              <option *ngFor="let team of teams" [ngValue]="team">{{ team.name }}</option>
+            </select>
+          </div>
+
+          <button class="predict-btn"
+                  [disabled]="!selectedTeam1 || !selectedTeam2 || selectedTeam1?.id === selectedTeam2?.id || isPredictingManual"
                   (click)="predictManual()">
-            <mat-spinner *ngIf="isPredictingManual" diameter="20"></mat-spinner>
-            <mat-icon *ngIf="!isPredictingManual">psychology</mat-icon>
-            {{ isPredictingManual ? 'Analyzing...' : 'Get Prediction' }}
+            <span *ngIf="isPredictingManual" class="btn-spinner"></span>
+            <span *ngIf="!isPredictingManual">🔮 Generate Prediction</span>
+            <span *ngIf="isPredictingManual">Analysing…</span>
           </button>
 
-          <!-- Manual Prediction Result -->
-          <div *ngIf="manualPrediction" style="margin-top: 20px; padding: 20px; background: #f5f5f5; border-radius: 8px;">
-            <h3 style="margin: 0 0 15px 0; color: #1976d2;">
-              {{ manualPrediction.match.homeTeam.name }} vs {{ manualPrediction.match.awayTeam.name }}
-            </h3>
+          <!-- Result -->
+          <div *ngIf="manualPrediction" class="prediction-result">
+            <div class="result-teams">
+              {{ manualPrediction.match.homeTeam.name }}
+              <span class="result-vs">vs</span>
+              {{ manualPrediction.match.awayTeam.name }}
+            </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
-              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px;">
-                <div style="font-size: 0.85rem; color: #666; margin-bottom: 5px;">🏠 Home</div>
-                <div style="font-size: 1.8rem; font-weight: bold; color: #1976d2;">
-                  {{ manualPrediction.homeWinProbability }}%
+            <div class="prob-bars">
+              <div class="prob-item">
+                <div class="prob-label">Home Win</div>
+                <div class="prob-bar-track">
+                  <div class="prob-bar home" [style.width]="manualPrediction.homeWinProbability + '%'"></div>
                 </div>
+                <div class="prob-value">{{ manualPrediction.homeWinProbability }}%</div>
               </div>
-              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px;">
-                <div style="font-size: 0.85rem; color: #666; margin-bottom: 5px;">⚖️ Draw</div>
-                <div style="font-size: 1.8rem; font-weight: bold; color: #666;">
-                  {{ manualPrediction.drawProbability }}%
+              <div class="prob-item">
+                <div class="prob-label">Draw</div>
+                <div class="prob-bar-track">
+                  <div class="prob-bar draw" [style.width]="manualPrediction.drawProbability + '%'"></div>
                 </div>
+                <div class="prob-value">{{ manualPrediction.drawProbability }}%</div>
               </div>
-              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px;">
-                <div style="font-size: 0.85rem; color: #666; margin-bottom: 5px;">✈️ Away</div>
-                <div style="font-size: 1.8rem; font-weight: bold; color: #d32f2f;">
-                  {{ manualPrediction.awayWinProbability }}%
+              <div class="prob-item">
+                <div class="prob-label">Away Win</div>
+                <div class="prob-bar-track">
+                  <div class="prob-bar away" [style.width]="manualPrediction.awayWinProbability + '%'"></div>
                 </div>
+                <div class="prob-value">{{ manualPrediction.awayWinProbability }}%</div>
               </div>
             </div>
 
-            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2;">
-              <strong style="color: #1976d2;">AI Analysis:</strong><br>
-              <div style="margin-top: 8px; line-height: 1.5;">{{ manualPrediction.reasoning }}</div>
+            <div class="reasoning-box">
+              <div class="reasoning-label">AI Reasoning</div>
+              <div class="reasoning-text" [innerHTML]="formatMessage(manualPrediction.reasoning)"></div>
             </div>
           </div>
         </div>
-      </mat-card-content>
-    </mat-card>
+      </div>
+    </div>
 
-    <!-- RECENT PREDICTIONS -->
-    <mat-card style="grid-column: 1 / -1;">
-      <mat-card-header>
-        <mat-card-title>All Predictions ({{ predictions.length }})</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        
-        <div *ngIf="loadingPredictions" style="text-align: center; padding: 40px;">
-          <mat-spinner diameter="40"></mat-spinner>
+    <!-- PREDICTIONS TABLE -->
+    <div class="card table-card">
+      <div class="card-header">
+        <span class="card-icon">📊</span>
+        <div>
+          <h2 class="card-title">All Predictions</h2>
+          <p class="card-subtitle">{{ predictions.length }} total predictions</p>
+        </div>
+      </div>
+
+      <div *ngIf="loadingPredictions" class="loader-wrap">
+        <div class="spinner"></div>
+      </div>
+
+      <div *ngIf="!loadingPredictions" class="pred-list">
+        <div *ngIf="predictions.length === 0" class="empty-state">
+          <div class="empty-icon">📭</div>
+          <p>No predictions yet. Use the Quick Prediction above!</p>
         </div>
 
-        <div *ngIf="!loadingPredictions" style="max-height: 500px; overflow-y: auto;">
-          <div *ngFor="let pred of predictions" 
-               style="padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px; background: #fafafa;">
-            
-            <div style="font-weight: 600; font-size: 1.2rem; margin-bottom: 15px; color: #333;">
-              {{ pred.match.homeTeam.name }} vs {{ pred.match.awayTeam.name }}
-              <span style="color: #999; font-size: 0.9rem; font-weight: normal;"> • {{ pred.match.league }}</span>
-            </div>
+        <div *ngFor="let pred of predictions" class="pred-row">
+          <div class="pred-teams">
+            <span class="team-name home-name">{{ pred.match.homeTeam.name }}</span>
+            <span class="badge-vs">VS</span>
+            <span class="team-name away-name">{{ pred.match.awayTeam.name }}</span>
+            <span class="league-badge">{{ pred.match.league }}</span>
+          </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
-              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Home Win</div>
-                <div style="font-size: 2rem; font-weight: bold; color: #1976d2;">
-                  {{ pred.homeWinProbability }}%
-                </div>
-              </div>
-              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Draw</div>
-                <div style="font-size: 2rem; font-weight: bold; color: #666;">
-                  {{ pred.drawProbability }}%
-                </div>
-              </div>
-              <div style="text-align: center; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Away Win</div>
-                <div style="font-size: 2rem; font-weight: bold; color: #d32f2f;">
-                  {{ pred.awayWinProbability }}%
-                </div>
-              </div>
+          <div class="pred-probs">
+            <div class="mini-prob">
+              <span class="mini-label">H</span>
+              <span class="mini-value home-color">{{ pred.homeWinProbability }}%</span>
             </div>
-
-            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #1976d2;">
-              <strong style="color: #1976d2;">AI Reasoning:</strong><br>
-              <div style="margin-top: 8px; line-height: 1.6; color: #555;">{{ pred.reasoning }}</div>
+            <div class="mini-prob">
+              <span class="mini-label">D</span>
+              <span class="mini-value draw-color">{{ pred.drawProbability }}%</span>
             </div>
-
-            <div style="margin-top: 12px; font-size: 0.85rem; color: #999;">
-              {{ pred.modelVersion || 'llama3.2' }} • 
-              {{ formatDate(pred.createdAt) }}
+            <div class="mini-prob">
+              <span class="mini-label">A</span>
+              <span class="mini-value away-color">{{ pred.awayWinProbability }}%</span>
             </div>
           </div>
 
-          <div *ngIf="predictions.length === 0" style="text-align: center; padding: 60px; color: #999;">
-            <mat-icon style="font-size: 64px; width: 64px; height: 64px;">analytics</mat-icon>
-            <p style="font-size: 1.2rem;">No predictions yet</p>
-            <p>Use the chat or team selector to generate predictions!</p>
+          <div class="pred-meta">
+            <span class="model-tag">{{ pred.modelVersion || 'llama3.2' }}</span>
+            <span class="pred-date">{{ formatDate(pred.createdAt) }}</span>
           </div>
         </div>
-      </mat-card-content>
-    </mat-card>
+      </div>
+    </div>
 
-  </div>
+  </main>
 </div>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.app-shell {
+  min-height: 100vh;
+  background: #0a0e1a;
+  color: #e8eaf0;
+  font-family: 'Inter', sans-serif;
+}
+
+.app-header {
+  background: linear-gradient(135deg, #0d1225 0%, #111827 100%);
+  border-bottom: 1px solid rgba(0,255,135,0.15);
+  padding: 20px 32px;
+}
+
+.header-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; gap: 20px; }
+
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-icon { font-size: 28px; }
+.logo-text { font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 500; letter-spacing: 1px; color: #fff; }
+.logo-text strong { color: #00ff87; font-weight: 700; }
+.header-sub { color: rgba(232,234,240,0.4); font-size: 13px; letter-spacing: 0.5px; }
+
+.app-main { max-width: 1400px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+
+.top-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+.card {
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+}
+
+.card-icon { font-size: 24px; }
+.card-title { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
+.card-subtitle { font-size: 12px; color: rgba(232,234,240,0.4); margin-top: 2px; }
+
+/* CHAT */
+.chat-card { display: flex; flex-direction: column; }
+
+.chat-messages {
+  flex: 1;
+  height: 380px;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,135,0.2) transparent;
+}
+
+.msg-wrap { display: flex; }
+.msg-user { justify-content: flex-end; }
+.msg-ai { justify-content: flex-start; }
+
+.msg-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.msg-user .msg-bubble {
+  background: linear-gradient(135deg, #00ff87, #00cc6a);
+  color: #0a0e1a;
+  font-weight: 500;
+}
+
+.msg-ai .msg-bubble {
+  background: #1e2535;
+  color: #c8cdd8;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.thinking { display: flex; gap: 5px; align-items: center; padding: 14px 18px; }
+.thinking span {
+  width: 7px; height: 7px; background: #00ff87; border-radius: 50%;
+  animation: bounce 1.2s infinite;
+}
+.thinking span:nth-child(2) { animation-delay: 0.2s; }
+.thinking span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+.chat-input-row {
+  display: flex; gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.chat-input {
+  flex: 1;
+  background: #1e2535;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #e8eaf0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.chat-input:focus { border-color: rgba(0,255,135,0.4); }
+.chat-input::placeholder { color: rgba(232,234,240,0.3); }
+
+.send-btn {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, #00ff87, #00cc6a);
+  color: #0a0e1a;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  font-weight: 700;
+}
+.send-btn:hover:not(:disabled) { opacity: 0.85; transform: scale(1.05); }
+.send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* PREDICT FORM */
+.predict-card .card-header + * { padding: 24px; }
+.predict-form { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.team-select-group { display: flex; flex-direction: column; gap: 6px; }
+.select-label { font-size: 12px; color: rgba(232,234,240,0.5); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+
+.team-select {
+  background: #1e2535;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #e8eaf0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300ff87' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+.team-select:focus { border-color: rgba(0,255,135,0.4); }
+
+.vs-divider {
+  text-align: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(0,255,135,0.4);
+  letter-spacing: 4px;
+}
+
+.predict-btn {
+  background: linear-gradient(135deg, #00ff87, #00cc6a);
+  color: #0a0e1a;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.predict-btn:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+.predict-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+.btn-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(0,0,0,0.3);
+  border-top-color: #0a0e1a;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.prediction-result {
+  background: #0d1225;
+  border: 1px solid rgba(0,255,135,0.15);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.result-teams {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+}
+.result-vs { color: rgba(0,255,135,0.5); margin: 0 10px; font-size: 14px; }
+
+.prob-bars { display: flex; flex-direction: column; gap: 10px; }
+
+.prob-item { display: flex; align-items: center; gap: 12px; }
+.prob-label { font-size: 12px; color: rgba(232,234,240,0.5); width: 70px; flex-shrink: 0; }
+
+.prob-bar-track {
+  flex: 1; height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px; overflow: hidden;
+}
+
+.prob-bar {
+  height: 100%; border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.prob-bar.home { background: linear-gradient(90deg, #00ff87, #00cc6a); box-shadow: 0 0 8px rgba(0,255,135,0.4); }
+.prob-bar.draw { background: linear-gradient(90deg, #6b7280, #9ca3af); }
+.prob-bar.away { background: linear-gradient(90deg, #f87171, #ef4444); }
+
+.prob-value { font-size: 13px; font-weight: 600; width: 38px; text-align: right; flex-shrink: 0; }
+
+.reasoning-box {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 14px;
+}
+.reasoning-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #00ff87; font-weight: 600; margin-bottom: 8px; }
+.reasoning-text { font-size: 13px; color: rgba(232,234,240,0.7); line-height: 1.6; white-space: pre-wrap; }
+
+/* PREDICTIONS TABLE */
+.table-card .card-header { padding: 20px 24px; }
+
+.pred-list { padding: 12px 24px 24px; display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
+
+.pred-row {
+  display: flex; align-items: center; gap: 20px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 10px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pred-row:hover { background: rgba(255,255,255,0.04); border-color: rgba(0,255,135,0.1); }
+
+.pred-teams { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
+.team-name { font-size: 14px; font-weight: 500; color: #e8eaf0; }
+.badge-vs { font-size: 10px; font-weight: 700; color: rgba(0,255,135,0.5); background: rgba(0,255,135,0.08); border-radius: 4px; padding: 2px 6px; letter-spacing: 1px; }
+.league-badge { font-size: 11px; color: rgba(232,234,240,0.35); background: rgba(255,255,255,0.04); border-radius: 4px; padding: 2px 8px; }
+
+.pred-probs { display: flex; gap: 16px; flex-shrink: 0; }
+.mini-prob { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mini-label { font-size: 10px; color: rgba(232,234,240,0.3); font-weight: 600; letter-spacing: 1px; }
+.mini-value { font-size: 15px; font-weight: 700; }
+.home-color { color: #00ff87; }
+.draw-color { color: #9ca3af; }
+.away-color { color: #f87171; }
+
+.pred-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.model-tag { font-size: 11px; background: rgba(0,255,135,0.08); color: #00ff87; border-radius: 4px; padding: 2px 8px; }
+.pred-date { font-size: 11px; color: rgba(232,234,240,0.3); }
+
+.loader-wrap { display: flex; justify-content: center; padding: 60px; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(0,255,135,0.1);
+  border-top-color: #00ff87;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.empty-state { text-align: center; padding: 60px 20px; color: rgba(232,234,240,0.3); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+@media (max-width: 900px) {
+  .top-grid { grid-template-columns: 1fr; }
+  .app-main { padding: 16px; }
+}
+</style>
