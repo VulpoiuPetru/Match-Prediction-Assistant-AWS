@@ -97,7 +97,7 @@ public class AiPredictionService {
     }
 
     private String callBedrock(String prompt) {
-        String modelId = "amazon.titan-text-lite-v1";
+        String modelId = "amazon.titan-text-express-v1";
         String requestBody = String.format(
                 "{\"inputText\":\"%s\",\"textGenerationConfig\":{\"maxTokenCount\":1024,\"temperature\":0.7}}",
                 prompt.replace("\"", "\\\"").replace("\n", "\\n")
