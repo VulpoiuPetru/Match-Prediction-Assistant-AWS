@@ -97,7 +97,7 @@ public class AiPredictionService {
     }
 
     private String callBedrock(String prompt) {
-        String modelId = "amazon.nova-micro-v1:0";
+        String modelId = "eu.amazon.nova-micro-v1:0";
         String requestBody = String.format(
                 "{\"messages\":[{\"role\":\"user\",\"content\":[{\"text\":\"%s\"}]}]}",
                 prompt.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
