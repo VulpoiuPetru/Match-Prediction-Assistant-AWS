@@ -1,0 +1,57 @@
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="app-shell">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <h1 class="page-title">Prediction History</h1>
+      <p class="page-sub">AI-generated predictions · {{ totalPredictions }} total</p>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value">{{ totalPredictions }}</div>
+        <div class="stat-label">Total Predictions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value home-color">{{ homeWins }}</div>
+        <div class="stat-label">Home Wins Predicted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value draw-color">{{ draws }}</div>
+        <div class="stat-label">Draws Predicted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value away-color">{{ awayWins }}</div>
+        <div class="stat-label">Away Wins Predicted</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <div class="card chart-card">
+        <div class="card-header">
+          <h2 class="card-title">Prediction Distribution</h2>
+          <p class="card-subtitle">Home / Draw / Away breakdown</p>
+        </div>
+        <div class="chart-wrap">
+          <canvas #donutCanvas></canvas>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-header">
+          <h2 class="card-title">Top Teams</h2>
+          <p class="card-subtitle">Most predicted teams</p>
+        </div>
+        <div class="chart-wrap">
+          <canvas #barCanvas></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

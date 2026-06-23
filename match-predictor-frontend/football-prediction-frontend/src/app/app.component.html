@@ -2,4 +2,75 @@
 <div class="container">
   <router-outlet></router-outlet>
 </div> -->
-<app-dashboard-component></app-dashboard-component>
+
+<!-- <app-dashboard-component></app-dashboard-component> -->
+
+
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<nav class="navbar" *ngIf="showNavbar">
+  <div class="navbar-inner">
+    <!-- <div class="navbar-logo">
+      <span class="logo-icon">⚽</span>
+      <span class="logo-text">Match<strong>AI</strong></span>
+    </div> -->
+    <div class="navbar-links">
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">🏠 Dashboard</a>
+      <a routerLink="/history" routerLinkActive="active" class="nav-link">📊 History</a>
+      <button class="logout-btn" (click)="logout()">Sign Out</button>
+    </div>
+  </div>
+</nav>
+
+<router-outlet></router-outlet>
+
+<style>
+.navbar {
+  background: linear-gradient(135deg, #0d1225 0%, #111827 100%);
+  border-bottom: 1px solid rgba(0,255,135,0.15);
+  padding: 14px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon { font-size: 24px; }
+.logo-text {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: 1px;
+}
+.logo-text strong { color: #00ff87; font-weight: 700; }
+
+.navbar-links { display: flex; gap: 8px; }
+
+.nav-link {
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: rgba(232,234,240,0.6);
+  text-decoration: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-link.active { background: rgba(0,255,135,0.1); color: #00ff87; }
+</style>

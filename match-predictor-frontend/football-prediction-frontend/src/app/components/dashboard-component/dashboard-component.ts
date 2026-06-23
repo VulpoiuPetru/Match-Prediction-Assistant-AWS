@@ -41,7 +41,7 @@ export class DashboardComponent implements OnInit {
   private snackBar = inject(MatSnackBar);
   private cdr = inject(ChangeDetectorRef);
   //private API = 'http://localhost:8080/api';
-  private API = 'http://18.185.114.255:8080/api';
+  private API = 'http://18.199.165.105:8080/api';
   
   teams: any[] = [];
   predictions: any[] = [];
@@ -80,11 +80,12 @@ export class DashboardComponent implements OnInit {
     this.userMessage = '';
     this.isThinking = true;
 
-    this.http.post<{response: string}>(`${this.API}/chat/message`, { message }).subscribe({
-      next: (data) => {
-        this.chatMessages.push({ role: 'ai', content: data.response });
-        this.isThinking = false;
-      },
+   this.http.post<{response: string}>(`${this.API}/chat/message`, { message }).subscribe({
+  next: (data) => {
+    this.chatMessages.push({ role: 'ai', content: data.response });
+    this.isThinking = false;
+    this.cdr.detectChanges();
+  },
       error: (err) => {
         console.error('❌ HTTP Error:', err);
         this.chatMessages.push({ 
@@ -162,5 +163,14 @@ export class DashboardComponent implements OnInit {
   formatDate(date: string): string {
     return new Date(date).toLocaleString();
   }
+
+formatMessage(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>')
+    .replace(/Confidence:.*?%/g, '')
+    .replace(/Model:.*?RAG/g, '');
+}
 
 }
