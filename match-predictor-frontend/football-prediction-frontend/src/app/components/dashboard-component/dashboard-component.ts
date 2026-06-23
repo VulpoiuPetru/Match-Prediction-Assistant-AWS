@@ -39,7 +39,9 @@ export class DashboardComponent implements OnInit {
 
  private http = inject(HttpClient);
   private snackBar = inject(MatSnackBar);
-  private API = 'http://localhost:8080/api';
+  private cdr = inject(ChangeDetectorRef);
+  //private API = 'http://localhost:8080/api';
+  private API = 'http://18.185.114.255:8080/api';
   
   teams: any[] = [];
   predictions: any[] = [];
@@ -99,9 +101,8 @@ export class DashboardComponent implements OnInit {
     this.http.get<any[]>(`${this.API}/predictions/teams`).subscribe({
       next: (data) => {
         this.teams = data;
-        console.log(this.loadingTeams);
         this.loadingTeams = false;
-        console.log(this.loadingTeams);
+        this.cdr.detectChanges();
       },
       error: () => {
         this.loadingTeams = false;
@@ -116,6 +117,7 @@ export class DashboardComponent implements OnInit {
       next: (data) => {
         this.predictions = data;
         this.loadingPredictions = false;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.loadingPredictions = false;

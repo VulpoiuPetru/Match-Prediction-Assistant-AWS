@@ -11,6 +11,7 @@ import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,6 +35,9 @@ public class AiPredictionService {
     @Autowired
     private ChromaDbService chromaDbService;
 
+    @Autowired
+    private BedrockRuntimeClient bedrockRuntimeClient;
+
 
     /**
      * Generate prediction using RAG approach:
@@ -56,16 +60,19 @@ public class AiPredictionService {
         try {
             // ============ RAG STEP 3: GENERATE ============
             System.out.println("RAG Step 3: Generating AI response...");
-            OllamaApi directApi = new OllamaApi("http://localhost:11434");
-            OllamaChatClient directClient = new OllamaChatClient(directApi);
+//            OllamaApi directApi = new OllamaApi("http://localhost:11434");
+//            OllamaChatClient directClient = new OllamaChatClient(directApi);
+//
+//            ChatResponse response = directClient.call(
+//                    new Prompt(augmentedPrompt,
+//                            org.springframework.ai.ollama.api.OllamaOptions.create()
+//                                    .withModel("llama3.2"))
+//            );
+//
+//            String aiResponse = response.getResult().getOutput().getContent();
 
-            ChatResponse response = directClient.call(
-                    new Prompt(augmentedPrompt,
-                            org.springframework.ai.ollama.api.OllamaOptions.create()
-                                    .withModel("llama3.2"))
-            );
+            String aiResponse = callBedrock(augmentedPrompt);
 
-            String aiResponse = response.getResult().getOutput().getContent();
             AiPrediction prediction = parseAiResponse(match, aiResponse);
             prediction.setModelVersion("llama3.2-RAG"); // Mark it as RAG-enhanced
 
@@ -89,6 +96,27 @@ public class AiPredictionService {
         }
     }
 
+    private String callBedrock(String prompt) {
+        String modelId = "amazon.titan-text-lite-v1";
+        String requestBody = String.format(
+                "{\"inputText\":\"%s\",\"textGenerationConfig\":{\"maxTokenCount\":1024,\"temperature\":0.7}}",
+                prompt.replace("\"", "\\\"").replace("\n", "\\n")
+        );
+
+        var request = software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest.builder()
+                .modelId(modelId)
+                .contentType("application/json")
+                .accept("application/json")
+                .body(software.amazon.awssdk.core.SdkBytes.fromUtf8String(requestBody))
+                .build();
+
+        var response = bedrockRuntimeClient.invokeModel(request);
+        String responseBody = response.body().asUtf8String();
+
+        // Parse Titan response
+        org.json.JSONObject json = new org.json.JSONObject(responseBody);
+        return json.getJSONArray("results").getJSONObject(0).getString("outputText");
+    }
 
      // RAG STEP 1: Retrieve relevant historical context from multiple sources
 
