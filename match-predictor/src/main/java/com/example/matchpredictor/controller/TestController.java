@@ -4,7 +4,6 @@ import com.example.matchpredictor. service.DataInitializationService;
 import org.springframework.ai.ollama.OllamaChatClient;
 import org. springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.ollama.api.OllamaApi;
 import org. springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation. GetMapping;
@@ -102,12 +101,9 @@ public class TestController {
     @GetMapping("/test-ai")
     public String testAi(@RequestParam(defaultValue = "Hello") String message) {
         try {
-            // Create a NEW client with explicit model each time
-            OllamaApi directApi = new OllamaApi("http://localhost:11434");
-            OllamaChatClient directClient = new OllamaChatClient(directApi);
-
+            // Reuse the shared OllamaChatClient bean (configured via OllamaConfig) instead of creating a new client per call
             // Force the model in the options
-            ChatResponse response = directClient.call(
+            ChatResponse response = ollamaChatClient.call(
                     new Prompt(message,
                             org.springframework.ai.ollama.api.OllamaOptions.create()
                                     .withModel("llama3.2"))

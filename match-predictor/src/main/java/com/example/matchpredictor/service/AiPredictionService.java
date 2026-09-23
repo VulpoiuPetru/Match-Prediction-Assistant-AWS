@@ -4,10 +4,6 @@ import com.example.matchpredictor.entity.AiPrediction;
 import com.example.matchpredictor.entity.Match;
 import com.example.matchpredictor.repository.AiPredictionRepository;
 import com.example.matchpredictor.repository.MatchRepository;
-import org.springframework.ai.ollama.OllamaChatClient;
-import org.springframework.ai.chat.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -28,9 +24,6 @@ public class AiPredictionService {
 
     @Autowired
     private MatchRepository matchRepository;
-
-    @Autowired
-    private OllamaChatClient ollamaChatClient;
 
     @Autowired
     private ChromaDbService chromaDbService;
@@ -60,21 +53,11 @@ public class AiPredictionService {
         try {
             // ============ RAG STEP 3: GENERATE ============
             System.out.println("RAG Step 3: Generating AI response...");
-//            OllamaApi directApi = new OllamaApi("http://localhost:11434");
-//            OllamaChatClient directClient = new OllamaChatClient(directApi);
-//
-//            ChatResponse response = directClient.call(
-//                    new Prompt(augmentedPrompt,
-//                            org.springframework.ai.ollama.api.OllamaOptions.create()
-//                                    .withModel("llama3.2"))
-//            );
-//
-//            String aiResponse = response.getResult().getOutput().getContent();
-
+// Prediction generation now goes through AWS Bedrock (see callBedrock below); Ollama is no longer used here.
             String aiResponse = callBedrock(augmentedPrompt);
 
             AiPrediction prediction = parseAiResponse(match, aiResponse);
-            prediction.setModelVersion("llama3.2-RAG"); // Mark it as RAG-enhanced
+            prediction.setModelVersion("bedrock-nova-micro-RAG"); // Mark it as RAG-enhanced (AWS Bedrock, not Ollama)
 
             // Store RAG context used in parameters
             prediction.setParameters(String.format(

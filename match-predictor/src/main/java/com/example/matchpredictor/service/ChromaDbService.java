@@ -5,15 +5,33 @@ import com.example.matchpredictor.entity.Match;
 import com.example.matchpredictor.repository.AiPredictionRepository;
 import com.example.matchpredictor.repository.MatchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tech.amikos.chromadb.Client;
+import tech.amikos.chromadb.Collection;
+import tech.amikos.chromadb.embeddings.DefaultEmbeddingFunction;
+import tech.amikos.chromadb.embeddings.EmbeddingFunction;
 
 import jakarta.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import org.springframework.beans.factory.annotation.Value;
 
-
-
+/**
+ * NOTE: this class used to talk to the ChromaDB Java client entirely through reflection
+ * (Class.forName + Method.invoke on Object fields), even though the real, typed
+ * chromadb-java-client:0.1.7 dependency was already on the classpath (see pom.xml).
+ * Rewritten to use the typed Client/Collection/EmbeddingFunction API directly.
+ *
+ * IMPORTANT: this file could not be compiled against the real dependency in the
+ * environment this rewrite was done in (no network access to Maven Central), so the
+ * class/method names below are reconstructed from the exact strings the previous
+ * reflection code used (Class.forName("tech.amikos.chromadb.Client"), method
+ * signatures via getMethod(...)), which is strong but not 100% verified evidence.
+ * Run `mvnw compile` (or `mvnw.cmd compile` on Windows) locally before committing.
+ * If it fails, the most likely fix is a package name tweak (e.g. EmbeddingFunction /
+ * DefaultEmbeddingFunction living directly under tech.amikos.chromadb instead of
+ * tech.amikos.chromadb.embeddings) rather than a structural rewrite.
+ */
 @Service
 public class ChromaDbService {
 
@@ -23,107 +41,41 @@ public class ChromaDbService {
     @Autowired
     private MatchRepository matchRepository;
 
-    private Object client;
-    private Object predictionCollection;
-    private Object matchHistoryCollection;
-    private Object analyticsCollection;
-    private boolean isConnected = false;
-
     @Value("${chromadb.url:http://localhost:8000}")
     private String chromaDbUrl;
 
+    private Client client;
+    private Collection predictionCollection;
+    private Collection matchHistoryCollection;
+    private Collection analyticsCollection;
+    private boolean isConnected = false;
+
     @PostConstruct
     public void init() {
-        System.out.println("CHROMADB CONNECTION DEBUG:");
-
         try {
-            System.out.println("1. Loading classes...");
-            Class<?> clientClass = Class.forName("tech.amikos.chromadb.Client");
-            Class<?> embeddingFunctionClass = Class.forName("tech.amikos.chromadb.embeddings.EmbeddingFunction");
-            System.out.println("   ✓ Classes loaded");
+            client = new Client(chromaDbUrl);
+            EmbeddingFunction embeddingFunction = new DefaultEmbeddingFunction();
 
-            System.out.println("2. Creating client...");
-//            client = clientClass.getConstructor(String.class)
-//                    .newInstance("http://localhost:8000");
-            client = clientClass.getConstructor(String.class)
-                    .newInstance(chromaDbUrl);
-            System.out.println("   ✓ Client created");
-
-            System.out.println("3. Looking for default embedding function...");
-            Object defaultEmbeddingFunction = null;
-
-            // Try to find a default embedding function
-            try {
-                Class<?> defaultEFClass = Class.forName("tech.amikos.chromadb.embeddings.DefaultEmbeddingFunction");
-                defaultEmbeddingFunction = defaultEFClass.getConstructor().newInstance();
-                System.out.println("   ✓ Using DefaultEmbeddingFunction");
-            } catch (ClassNotFoundException e1) {
-                // Try OpenAI embedding function with null (some versions allow it)
-                try {
-                    Class<?> openAIEFClass = Class.forName("tech.amikos.chromadb.embeddings.openai.OpenAIEmbeddingFunction");
-                    // Leave as null - we'll handle this differently
-                    System.out.println("   ℹ️ No default embedding function found, trying without embeddings");
-                } catch (ClassNotFoundException e2) {
-                    System.out.println("   ⚠️ No embedding function classes found");
-                }
-            }
-
-            System.out.println("4. Getting collection methods...");
-            var createCollectionMethod = clientClass.getMethod("createCollection",
-                    String.class, Map.class, Boolean.class, embeddingFunctionClass);
-            var getCollectionMethod = clientClass.getMethod("getCollection",
-                    String.class, embeddingFunctionClass);
-            System.out.println("   ✓ Methods found");
-
-            System.out.println("5. Creating collections...");
-
-            // Create collections
-            predictionCollection = getOrCreateCollection(
-                    "match_predictions", createCollectionMethod, getCollectionMethod, defaultEmbeddingFunction);
-            System.out.println("   ✓ match_predictions ready");
-
-            matchHistoryCollection = getOrCreateCollection(
-                    "match_history", createCollectionMethod, getCollectionMethod, defaultEmbeddingFunction);
-            System.out.println("   ✓ match_history ready");
-
-            analyticsCollection = getOrCreateCollection(
-                    "prediction_analytics", createCollectionMethod, getCollectionMethod, defaultEmbeddingFunction);
-            System.out.println("   ✓ prediction_analytics ready");
+            predictionCollection = getOrCreateCollection("match_predictions", embeddingFunction);
+            matchHistoryCollection = getOrCreateCollection("match_history", embeddingFunction);
+            analyticsCollection = getOrCreateCollection("prediction_analytics", embeddingFunction);
 
             isConnected = true;
-            System.out.println("✅ ChromaDB connected successfully!");
-            System.out.println("   📊 Collections: predictions, match_history, analytics");
+            System.out.println("ChromaDB connected - collections: predictions, match_history, analytics");
 
             initializeCollections();
 
         } catch (Exception e) {
-            System.out.println("❌ Connection failed: " + e.getClass().getSimpleName());
-            System.out.println("   Message: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.out.println("   Cause: " + e.getCause().getMessage());
-            }
-            e.printStackTrace();
+            System.out.println("ChromaDB connection failed: " + e.getClass().getSimpleName() + " - " + e.getMessage());
             isConnected = false;
         }
-
-        System.out.println("=== END DEBUG ===");
     }
 
-    private Object getOrCreateCollection(String name,
-                                         java.lang.reflect.Method createMethod,
-                                         java.lang.reflect.Method getMethod,
-                                         Object embeddingFunction) throws Exception {
+    private Collection getOrCreateCollection(String name, EmbeddingFunction embeddingFunction) throws Exception {
         try {
-            System.out.println("   Trying to get existing collection: " + name);
-            return getMethod.invoke(client, name, embeddingFunction);
+            return client.getCollection(name, embeddingFunction);
         } catch (Exception e) {
-            System.out.println("   Collection not found, creating: " + name);
-            // If embedding function is still null, skip for now
-            if (embeddingFunction == null) {
-                System.out.println("   ⚠️ Skipping collection creation (no embedding function)");
-                throw new RuntimeException("Cannot create collection without embedding function");
-            }
-            return createMethod.invoke(client, name, null, true, embeddingFunction);
+            return client.createCollection(name, null, true, embeddingFunction);
         }
     }
 
@@ -134,32 +86,28 @@ public class ChromaDbService {
         if (!isConnected) return;
 
         try {
-            // Store all existing predictions
             List<AiPrediction> predictions = aiPredictionRepository.findAll();
-            System.out.println("📥 Loading " + predictions.size() + " predictions into ChromaDB...");
-
+            System.out.println("Loading " + predictions.size() + " predictions into ChromaDB...");
             for (AiPrediction pred : predictions) {
                 storePrediction(pred);
             }
 
-            // Store all finished matches for context reuse
             List<Match> matches = matchRepository.findAll()
                     .stream()
                     .filter(m -> "FINISHED".equals(m.getStatus()))
                     .toList();
 
-            System.out.println("📥 Loading " + matches.size() + " finished matches...");
+            System.out.println("Loading " + matches.size() + " finished matches...");
             for (Match match : matches) {
                 storeMatchHistory(match);
             }
 
-            // Generate analytics
             generateAnalytics();
 
-            System.out.println("✅ ChromaDB initialization complete!");
+            System.out.println("ChromaDB initialization complete!");
 
         } catch (Exception e) {
-            System.out.println("⚠️ Initialization failed: " + e.getMessage());
+            System.out.println("Initialization failed: " + e.getMessage());
         }
     }
 
@@ -168,7 +116,7 @@ public class ChromaDbService {
      */
     public void storePrediction(AiPrediction prediction) {
         if (!isConnected || predictionCollection == null) {
-            System.out.println("ℹ️ ChromaDB not available - skipping vector storage");
+            System.out.println("ChromaDB not available - skipping vector storage");
             return;
         }
 
@@ -176,7 +124,6 @@ public class ChromaDbService {
             String id = "prediction_" + prediction.getId();
             Match match = prediction.getMatch();
 
-            // Rich semantic document for vector search
             String document = String.format("""
                 AI Prediction for %s vs %s in %s league.
                 Predicted probabilities: Home win %.2f%%, Draw %.2f%%, Away win %.2f%%.
@@ -210,15 +157,12 @@ public class ChromaDbService {
             metadata.put("away_prob", prediction.getAwayWinProbability().toString());
             metadata.put("timestamp", prediction.getCreatedAt().toString());
 
-            var addMethod = predictionCollection.getClass().getMethod("add",
-                    List.class, List.class, List.class, List.class);
-            addMethod.invoke(predictionCollection,
-                    null, List.of(metadata), List.of(document), List.of(id));
+            predictionCollection.add(null, List.of(metadata), List.of(document), List.of(id));
 
-            System.out.println("✅ Stored prediction in ChromaDB: " + id);
+            System.out.println("Stored prediction in ChromaDB: " + id);
 
         } catch (Exception e) {
-            System.out.println("⚠️ ChromaDB storage failed: " + e.getMessage());
+            System.out.println("ChromaDB storage failed: " + e.getMessage());
         }
     }
 
@@ -267,13 +211,10 @@ public class ChromaDbService {
             metadata.put("winner", getWinner(match));
             metadata.put("league", match.getLeague());
 
-            var addMethod = matchHistoryCollection.getClass().getMethod("add",
-                    List.class, List.class, List.class, List.class);
-            addMethod.invoke(matchHistoryCollection,
-                    null, List.of(metadata), List.of(document), List.of(id));
+            matchHistoryCollection.add(null, List.of(metadata), List.of(document), List.of(id));
 
         } catch (Exception e) {
-            System.out.println("⚠️ Failed to store match history: " + e.getMessage());
+            System.out.println("Failed to store match history: " + e.getMessage());
         }
     }
 
@@ -286,7 +227,6 @@ public class ChromaDbService {
         try {
             List<AiPrediction> allPredictions = aiPredictionRepository.findAll();
 
-            // Calculate various analytics
             Map<String, Integer> teamPredictionCount = new HashMap<>();
             Map<String, Integer> leaguePredictionCount = new HashMap<>();
             double totalConfidence = 0;
@@ -312,7 +252,6 @@ public class ChromaDbService {
                 }
             }
 
-            // Create analytics document
             String analyticsDoc = String.format("""
                 Prediction System Analytics Summary:
                 Total predictions made: %d
@@ -341,15 +280,12 @@ public class ChromaDbService {
             metadata.put("accuracy", String.valueOf(totalEvaluated > 0 ? (correctPredictions * 100.0 / totalEvaluated) : 0));
             metadata.put("timestamp", new java.util.Date().toString());
 
-            var addMethod = analyticsCollection.getClass().getMethod("add",
-                    List.class, List.class, List.class, List.class);
-            addMethod.invoke(analyticsCollection,
-                    null, List.of(metadata), List.of(analyticsDoc), List.of("analytics_latest"));
+            analyticsCollection.add(null, List.of(metadata), List.of(analyticsDoc), List.of("analytics_latest"));
 
-            System.out.println("✅ Analytics generated and stored in ChromaDB");
+            System.out.println("Analytics generated and stored in ChromaDB");
 
         } catch (Exception e) {
-            System.out.println("⚠️ Analytics generation failed: " + e.getMessage());
+            System.out.println("Analytics generation failed: " + e.getMessage());
         }
     }
 
@@ -362,20 +298,14 @@ public class ChromaDbService {
         }
 
         try {
-            var queryMethod = predictionCollection.getClass().getMethod("query",
-                    List.class, Integer.class, Map.class, Map.class, List.class);
-            Object results = queryMethod.invoke(predictionCollection,
-                    List.of(query), limit, null, null, null);
-
-            var getDocsMethod = results.getClass().getMethod("getDocuments");
-            @SuppressWarnings("unchecked")
-            List<List<String>> docs = (List<List<String>>) getDocsMethod.invoke(results);
+            var results = predictionCollection.query(List.of(query), limit, null, null, null);
+            List<List<String>> docs = results.getDocuments();
 
             if (docs != null && !docs.isEmpty()) {
                 return docs.get(0);
             }
         } catch (Exception e) {
-            System.out.println("⚠️ Search failed: " + e.getMessage());
+            System.out.println("Search failed: " + e.getMessage());
         }
 
         return Collections.emptyList();
@@ -395,14 +325,8 @@ public class ChromaDbService {
                     homeTeam, awayTeam
             );
 
-            var queryMethod = matchHistoryCollection.getClass().getMethod("query",
-                    List.class, Integer.class, Map.class, Map.class, List.class);
-            Object results = queryMethod.invoke(matchHistoryCollection,
-                    List.of(query), 5, null, null, null);
-
-            var getDocsMethod = results.getClass().getMethod("getDocuments");
-            @SuppressWarnings("unchecked")
-            List<List<String>> docs = (List<List<String>>) getDocsMethod.invoke(results);
+            var results = matchHistoryCollection.query(List.of(query), 5, null, null, null);
+            List<List<String>> docs = results.getDocuments();
 
             if (docs != null && !docs.isEmpty() && !docs.get(0).isEmpty()) {
                 StringBuilder context = new StringBuilder();
@@ -413,7 +337,7 @@ public class ChromaDbService {
                 return context.toString();
             }
         } catch (Exception e) {
-            System.out.println("⚠️ Context retrieval failed: " + e.getMessage());
+            System.out.println("Context retrieval failed: " + e.getMessage());
         }
 
         return "No relevant historical context found.";
@@ -436,16 +360,9 @@ public class ChromaDbService {
             analytics.put("predictionCount", getPredictionCount());
             analytics.put("matchHistoryCount", getMatchHistoryCount());
 
-            // Get latest analytics document
             if (analyticsCollection != null) {
-                var queryMethod = analyticsCollection.getClass().getMethod("query",
-                        List.class, Integer.class, Map.class, Map.class, List.class);
-                Object results = queryMethod.invoke(analyticsCollection,
-                        List.of("latest analytics summary"), 1, null, null, null);
-
-                var getDocsMethod = results.getClass().getMethod("getDocuments");
-                @SuppressWarnings("unchecked")
-                List<List<String>> docs = (List<List<String>>) getDocsMethod.invoke(results);
+                var results = analyticsCollection.query(List.of("latest analytics summary"), 1, null, null, null);
+                List<List<String>> docs = results.getDocuments();
 
                 if (docs != null && !docs.isEmpty() && !docs.get(0).isEmpty()) {
                     analytics.put("summary", docs.get(0).get(0));
@@ -489,8 +406,7 @@ public class ChromaDbService {
     public int getPredictionCount() {
         if (!isConnected || predictionCollection == null) return 0;
         try {
-            var countMethod = predictionCollection.getClass().getMethod("count");
-            return (Integer) countMethod.invoke(predictionCollection);
+            return predictionCollection.count();
         } catch (Exception e) {
             return 0;
         }
@@ -499,8 +415,7 @@ public class ChromaDbService {
     public int getMatchHistoryCount() {
         if (!isConnected || matchHistoryCollection == null) return 0;
         try {
-            var countMethod = matchHistoryCollection.getClass().getMethod("count");
-            return (Integer) countMethod.invoke(matchHistoryCollection);
+            return matchHistoryCollection.count();
         } catch (Exception e) {
             return 0;
         }
@@ -517,6 +432,5 @@ public class ChromaDbService {
         }
         return "ChromaDB not connected";
     }
-
 
 }

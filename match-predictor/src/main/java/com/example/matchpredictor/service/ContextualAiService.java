@@ -9,7 +9,6 @@ import com.example.matchpredictor.repository. ConversationContextRepository;
 import org.springframework.ai.chat.ChatResponse;
 import org. springframework.ai.chat.prompt. Prompt;
 import org.springframework.ai.ollama.OllamaChatClient;
-import org. springframework.ai.ollama.api.OllamaApi;
 import org. springframework.ai.ollama.api.OllamaOptions;
 import org. springframework.beans.factory.annotation. Autowired;
 import org.springframework. data.domain.PageRequest;
@@ -32,6 +31,9 @@ public class ContextualAiService {
     @Autowired
     private MatchService matchService;
 
+    @Autowired
+    private OllamaChatClient ollamaChatClient;
+
     //Generate a prediction with context awareness(mem+param)
     public AiPrediction generateContextualPrediction(ContextualPredictionRequest request) {
         Match match = matchService. getMatchById(request.getMatchId())
@@ -53,11 +55,8 @@ public class ContextualAiService {
         );
         userContext.setMatch(match);
         try {
-            // Create client with explicit model
-            OllamaApi directApi = new OllamaApi("http://localhost:11434");
-            OllamaChatClient directClient = new OllamaChatClient(directApi);
-
-            ChatResponse response = directClient.call(
+            // Reuse the shared OllamaChatClient bean (configured via OllamaConfig) instead of creating a new client per call
+            ChatResponse response = ollamaChatClient.call(
                     new Prompt(prompt, OllamaOptions.create().withModel("llama3.2"))
             );
 
