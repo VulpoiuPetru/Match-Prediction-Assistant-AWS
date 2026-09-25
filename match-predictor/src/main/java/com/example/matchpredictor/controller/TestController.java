@@ -6,12 +6,23 @@ import org. springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org. springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation. GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework. web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Debug/dev-only endpoints (config check, manual data init, raw AI connectivity test).
+ * Restricted to the "dev" profile so these never end up reachable in a deployed environment.
+ * Activate locally with SPRING_PROFILES_ACTIVE=dev (already set that way in docker-compose.yml).
+ */
 @RestController
+@Profile("dev")
 public class TestController {
+
+    private static final Logger log = LoggerFactory.getLogger(TestController.class);
 
     @Autowired
     private OllamaChatClient ollamaChatClient;
@@ -36,31 +47,23 @@ public class TestController {
 
     @GetMapping("/test-ai-detailed")
     public String testAiDetailed(@RequestParam(defaultValue = "Hello") String message) {
-        System.out.println("DEBUG: Starting test-ai-detailed");
-        System.out.println("DEBUG: Configured model: " + configuredModel);
-        System.out.println("DEBUG: Message: " + message);
-        System.out.println("DEBUG: OllamaChatClient instance: " + ollamaChatClient);
+        log.info("Starting test-ai-detailed, model={}, message={}", configuredModel, message);
+        log.debug("OllamaChatClient instance: {}", ollamaChatClient);
 
         try {
-            System.out.println("DEBUG: About to create Prompt");
+            log.debug("Creating Prompt");
             Prompt prompt = new Prompt(message);
-            System.out. println("DEBUG: Prompt created successfully");
 
-            System.out.println("DEBUG: About to call ollamaChatClient.call()");
+            log.debug("Calling ollamaChatClient.call()");
             ChatResponse response = ollamaChatClient.call(prompt);
-            System.out.println("DEBUG: Call successful, got response");
+            log.debug("Call successful, got response");
 
             String result = response.getResult().getOutput(). getContent();
-            System.out. println("DEBUG: Extracted content from response");
 
             return "AI Response:\n\n" + result;
 
         } catch (Exception e) {
-            System.err.println("DEBUG: Exception occurred");
-            System.err.println("DEBUG: Exception type: " + e.getClass().getName());
-            System.err.println("DEBUG: Exception message: " + e.getMessage());
-            System.err.println("DEBUG: Stack trace:");
-            e.printStackTrace();
+            log.error("test-ai-detailed failed for message '{}'", message, e);
 
             return "DETAILED ERROR:\n" +
                     "Exception Type: " + e.getClass(). getSimpleName() + "\n" +

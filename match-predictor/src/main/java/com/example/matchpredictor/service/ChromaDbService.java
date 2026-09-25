@@ -11,6 +11,8 @@ import tech.amikos.chromadb.Client;
 import tech.amikos.chromadb.Collection;
 import tech.amikos.chromadb.embeddings.DefaultEmbeddingFunction;
 import tech.amikos.chromadb.embeddings.EmbeddingFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.annotation.PostConstruct;
 import java.time.format.DateTimeFormatter;
@@ -34,6 +36,8 @@ import java.util.*;
  */
 @Service
 public class ChromaDbService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChromaDbService.class);
 
     @Autowired
     private AiPredictionRepository aiPredictionRepository;
@@ -61,12 +65,12 @@ public class ChromaDbService {
             analyticsCollection = getOrCreateCollection("prediction_analytics", embeddingFunction);
 
             isConnected = true;
-            System.out.println("ChromaDB connected - collections: predictions, match_history, analytics");
+            log.info("ChromaDB connected - collections: predictions, match_history, analytics");
 
             initializeCollections();
 
         } catch (Exception e) {
-            System.out.println("ChromaDB connection failed: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            log.error("ChromaDB connection failed", e);
             isConnected = false;
         }
     }
@@ -87,7 +91,7 @@ public class ChromaDbService {
 
         try {
             List<AiPrediction> predictions = aiPredictionRepository.findAll();
-            System.out.println("Loading " + predictions.size() + " predictions into ChromaDB...");
+            log.info("Loading {} predictions into ChromaDB", predictions.size());
             for (AiPrediction pred : predictions) {
                 storePrediction(pred);
             }
@@ -97,17 +101,17 @@ public class ChromaDbService {
                     .filter(m -> "FINISHED".equals(m.getStatus()))
                     .toList();
 
-            System.out.println("Loading " + matches.size() + " finished matches...");
+            log.info("Loading {} finished matches", matches.size());
             for (Match match : matches) {
                 storeMatchHistory(match);
             }
 
             generateAnalytics();
 
-            System.out.println("ChromaDB initialization complete!");
+            log.info("ChromaDB initialization complete");
 
         } catch (Exception e) {
-            System.out.println("Initialization failed: " + e.getMessage());
+            log.error("ChromaDB initialization failed", e);
         }
     }
 
@@ -116,7 +120,7 @@ public class ChromaDbService {
      */
     public void storePrediction(AiPrediction prediction) {
         if (!isConnected || predictionCollection == null) {
-            System.out.println("ChromaDB not available - skipping vector storage");
+            log.warn("ChromaDB not available - skipping vector storage");
             return;
         }
 
@@ -159,10 +163,10 @@ public class ChromaDbService {
 
             predictionCollection.add(null, List.of(metadata), List.of(document), List.of(id));
 
-            System.out.println("Stored prediction in ChromaDB: " + id);
+            log.info("Stored prediction in ChromaDB: {}", id);
 
         } catch (Exception e) {
-            System.out.println("ChromaDB storage failed: " + e.getMessage());
+            log.error("ChromaDB storage failed", e);
         }
     }
 
@@ -214,7 +218,7 @@ public class ChromaDbService {
             matchHistoryCollection.add(null, List.of(metadata), List.of(document), List.of(id));
 
         } catch (Exception e) {
-            System.out.println("Failed to store match history: " + e.getMessage());
+            log.error("Failed to store match history", e);
         }
     }
 
@@ -282,10 +286,10 @@ public class ChromaDbService {
 
             analyticsCollection.add(null, List.of(metadata), List.of(analyticsDoc), List.of("analytics_latest"));
 
-            System.out.println("Analytics generated and stored in ChromaDB");
+            log.info("Analytics generated and stored in ChromaDB");
 
         } catch (Exception e) {
-            System.out.println("Analytics generation failed: " + e.getMessage());
+            log.error("Analytics generation failed", e);
         }
     }
 
@@ -305,7 +309,7 @@ public class ChromaDbService {
                 return docs.get(0);
             }
         } catch (Exception e) {
-            System.out.println("Search failed: " + e.getMessage());
+            log.error("Search failed", e);
         }
 
         return Collections.emptyList();
@@ -337,7 +341,7 @@ public class ChromaDbService {
                 return context.toString();
             }
         } catch (Exception e) {
-            System.out.println("Context retrieval failed: " + e.getMessage());
+            log.error("Context retrieval failed", e);
         }
 
         return "No relevant historical context found.";

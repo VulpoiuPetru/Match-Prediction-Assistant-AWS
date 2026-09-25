@@ -4,20 +4,22 @@ phases:
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
-      - aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 494003775990.dkr.ecr.eu-central-1.amazonaws.com
+      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - export ECR_REPO=$AWS_ACCOUNT_ID.dkr.ecr.eu-central-1.amazonaws.com
+      - aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin $ECR_REPO
   build:
     commands:
       - echo Building Docker image...
       - cd match-predictor
       - docker build -t match-predictor .
-      - docker tag match-predictor:latest 494003775990.dkr.ecr.eu-central-1.amazonaws.com/match-predictor:latest
+      - docker tag match-predictor:latest $ECR_REPO/match-predictor:latest
       - cd ..
   post_build:
     commands:
       - echo Pushing to ECR...
-      - docker push 494003775990.dkr.ecr.eu-central-1.amazonaws.com/match-predictor:latest
+      - docker push $ECR_REPO/match-predictor:latest
       - echo Writing imagedefinitions.json...
-      - printf '[{"name":"match-predictor","imageUri":"494003775990.dkr.ecr.eu-central-1.amazonaws.com/match-predictor:latest"}]' > imagedefinitions.json
+      - printf '[{"name":"match-predictor","imageUri":"%s/match-predictor:latest"}]' "$ECR_REPO" > imagedefinitions.json
 
 artifacts:
   files:

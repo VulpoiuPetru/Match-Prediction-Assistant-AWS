@@ -9,6 +9,8 @@ import com.example.matchpredictor.entity.AiPrediction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/chat")
 public class SimpleChatController {
+
+    private static final Logger log = LoggerFactory.getLogger(SimpleChatController.class);
 
     @Autowired
     private MatchService matchService;
@@ -178,7 +182,7 @@ public class SimpleChatController {
 
             // If match doesn't exist, create a temporary one
             if (existingMatch == null) {
-                System.out.println("Creating temporary match for prediction...");
+                log.info("Creating temporary match for prediction");
                 Match tempMatch = new Match();
                 tempMatch.setHomeTeam(foundTeam1);
                 tempMatch.setAwayTeam(foundTeam2);
@@ -193,7 +197,7 @@ public class SimpleChatController {
             }
 
             // Generate RAG prediction using AiPredictionService
-            System.out.println("Generating RAG prediction for match ID: " + matchToPredict.getId());
+            log.info("Generating RAG prediction for match id {}", matchToPredict.getId());
             AiPrediction prediction = aiPredictionService.generatePrediction(matchToPredict.getId());
 
             // Format the response
@@ -222,7 +226,7 @@ public class SimpleChatController {
             );
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error generating RAG prediction for chat request", e);
             return "**Error generating AI prediction**\n\n" +
                     "Make sure:\n" +
                     "Ollama is running (http://localhost:11434)\n" +

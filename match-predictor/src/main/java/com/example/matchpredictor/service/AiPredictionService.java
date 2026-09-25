@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -15,6 +17,8 @@ import java.util.Optional;
 
 @Service
 public class AiPredictionService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiPredictionService.class);
 
     @Autowired
     private AiPredictionRepository aiPredictionRepository;
@@ -43,16 +47,16 @@ public class AiPredictionService {
                 .orElseThrow(() -> new RuntimeException("Match not found with id: " + matchId));
 
         // ============ RAG STEP 1: RETRIEVE ============
-        System.out.println("RAG Step 1: Retrieving relevant data from ChromaDB...");
+        log.info("RAG step 1: retrieving relevant data from ChromaDB");
         String retrievedContext = retrieveRelevantContext(match);
 
         // ============ RAG STEP 2: AUGMENT ============
-        System.out.println("RAG Step 2: Augmenting prompt with retrieved data...");
+        log.info("RAG step 2: augmenting prompt with retrieved data");
         String augmentedPrompt = createRAGPrompt(match, retrievedContext);
 
         try {
             // ============ RAG STEP 3: GENERATE ============
-            System.out.println("RAG Step 3: Generating AI response...");
+            log.info("RAG step 3: generating AI response");
 // Prediction generation now goes through AWS Bedrock (see callBedrock below); Ollama is no longer used here.
             String aiResponse = callBedrock(augmentedPrompt);
 
@@ -71,7 +75,7 @@ public class AiPredictionService {
             // Store back in ChromaDB for future RAG retrievals
             chromaDbService.storePrediction(savedPrediction);
 
-            System.out.println("RAG prediction completed and stored!");
+            log.info("RAG prediction completed and stored");
             return savedPrediction;
 
         } catch (Exception e) {
@@ -111,7 +115,7 @@ public class AiPredictionService {
 
         // 1. Get historical context from ChromaDB (vector search)
         if (chromaDbService.isConnected()) {
-            System.out.println("Searching ChromaDB vector store...");
+            log.info("Searching ChromaDB vector store");
             String chromaContext = chromaDbService.getHistoricalContext(
                     match.getHomeTeam().getName(),
                     match.getAwayTeam().getName()
@@ -123,18 +127,18 @@ public class AiPredictionService {
         }
 
         // 2. Get head-to-head statistics from PostgreSQL
-        System.out.println("Querying PostgreSQL for head-to-head...");
+        log.info("Querying PostgreSQL for head-to-head stats");
         String h2hStats = getHeadToHeadStats(match);
         context.append(h2hStats);
 
         // 3. Get recent form from PostgreSQL
-        System.out.println("Analyzing recent form...");
+        log.info("Analyzing recent form");
         String formStats = getTeamFormStats(match);
         context.append(formStats);
 
         // 4. Get similar predictions from ChromaDB
         if (chromaDbService.isConnected()) {
-            System.out.println("Finding similar past predictions...");
+            log.info("Finding similar past predictions");
             List<String> similarPredictions = chromaDbService.searchSimilarPredictions(
                     String.format("predictions for %s vs %s or similar matchups in %s",
                             match.getHomeTeam().getName(),

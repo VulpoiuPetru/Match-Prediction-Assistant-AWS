@@ -10,6 +10,8 @@ import com.example.matchpredictor.service.TeamService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -17,6 +19,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/predictions")
 public class TeamPredictionController {
+
+    private static final Logger log = LoggerFactory.getLogger(TeamPredictionController.class);
 
     @Autowired
     private AiPredictionService aiPredictionService;
@@ -33,7 +37,7 @@ public class TeamPredictionController {
     @PostMapping("/predict-teams")
     public ResponseEntity<?> predictBetweenTeams(@RequestBody TeamPredictionRequest request) {
         try {
-            System.out.println("RAG Prediction request: Team " + request.getHomeTeamId() + " vs " + request.getAwayTeamId());
+            log.info("RAG prediction request: team {} vs team {}", request.getHomeTeamId(), request.getAwayTeamId());
 
             // Get teams from database
             Team homeTeam = teamService.getTeamById(request.getHomeTeamId())
@@ -51,31 +55,30 @@ public class TeamPredictionController {
 
             Match match;
             if (existingMatch.isPresent()) {
-                System.out.println("Found existing match: " + existingMatch.get().getId());
+                log.info("Found existing match: {}", existingMatch.get().getId());
                 match = existingMatch.get();
             } else {
                 // Create new match for RAG prediction
-                System.out.println("Creating new match for RAG prediction...");
+                log.info("Creating new match for RAG prediction");
                 match = new Match(homeTeam, awayTeam,
                         LocalDateTime.now().plusDays(7),
                         "Prediction Request");
                 match.setVenue(homeTeam.getName() + " Stadium");
                 match = matchService.createMatch(match);
-                System.out.println("Match created with ID: " + match.getId());
+                log.info("Match created with id {}", match.getId());
             }
 
             // Generate AI prediction using RAG
             // This will use your existing AiPredictionService.generatePrediction()
             // which already has RAG with ChromaDB, PostgreSQL stats, etc.
-            System.out.println("Generating RAG prediction with real data...");
+            log.info("Generating RAG prediction with real data");
             AiPrediction prediction = aiPredictionService.generatePrediction(match.getId());
 
-            System.out.println("RAG prediction generated successfully!");
+            log.info("RAG prediction generated successfully");
             return ResponseEntity.ok(prediction);
 
         } catch (Exception e) {
-            System.err.println("Error generating RAG prediction: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error generating RAG prediction", e);
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }
     }
